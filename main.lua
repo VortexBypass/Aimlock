@@ -5,17 +5,123 @@ local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 
 local TargetTeamName = "Hider"
-local AIM_SMOOTHNESS = 0.3
-local MAX_AIM_DISTANCE = 500
+local PlayerTeamName = "Seeker"
+local AIM_SMOOTHNESS = 1
+local MAX_AIM_DISTANCE = 90
 
 getgenv().AimlockSettings = {
     AimLockEnabled = false,
     SafetyLockEnabled = false,
-    PlatformSelected = false
+    PlatformSelected = false,
+    CurrentTarget = nil
 }
 
 local currentNotification = nil
 local messageQueue = {}
+local espFolders = {}
+
+local function createESP(targetPlayer)
+    if not targetPlayer.Character then return end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "AimlockESP"
+    highlight.FillColor = Color3.new(0, 0, 1) -- Blue color for Hiders
+    highlight.OutlineColor = Color3.new(1, 1, 1)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = targetPlayer.Character
+    
+    espFolders[targetPlayer] = highlight
+    
+    targetPlayer.CharacterAdded:Connect(function(character)
+        wait(1)
+        if targetPlayer.Team and targetPlayer.Team.Name == TargetTeamName then
+            local newHighlight = Instance.new("Highlight")
+            newHighlight.Name = "AimlockESP"
+            newHighlight.FillColor = Color3.new(0, 0, 1) -- Blue color for Hiders
+            newHighlight.OutlineColor = Color3.new(1, 1, 1)
+            newHighlight.FillTransparency = 0.5
+            newHighlight.OutlineTransparency = 0
+            newHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            newHighlight.Parent = character
+            espFolders[targetPlayer] = newHighlight
+        end
+    end)
+    
+    targetPlayer.CharacterRemoving:Connect(function()
+        if espFolders[targetPlayer] then
+            espFolders[targetPlayer]:Destroy()
+            espFolders[targetPlayer] = nil
+        end
+    end)
+end
+
+local function initializeESP()
+    local localPlayer = Players.LocalPlayer
+    local SeekerTeam = game:GetService("Teams"):FindFirstChild(PlayerTeamName)
+    local HiderTeam = game:GetService("Teams"):FindFirstChild(TargetTeamName)
+    
+    if not SeekerTeam or not HiderTeam then
+        createNotification("⚠️ Teams not configured properly\nESP may not work", Color3.new(1, 1, 0))
+        return
+    end
+    
+    localPlayer:GetPropertyChangedSignal("Team"):Connect(function()
+        for player, highlight in pairs(espFolders) do
+            if highlight then
+                highlight:Destroy()
+            end
+        end
+        espFolders = {}
+        
+        if localPlayer.Team == SeekerTeam then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= localPlayer and player.Team == HiderTeam then
+                    createESP(player)
+                end
+            end
+        end
+    end)
+    
+    if localPlayer.Team == SeekerTeam then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= localPlayer and player.Team == HiderTeam then
+                createESP(player)
+            end
+        end
+        
+        Players.PlayerAdded:Connect(function(player)
+            player:WaitForChild("Team")
+            if localPlayer.Team == SeekerTeam and player.Team == HiderTeam then
+                createESP(player)
+            end
+        end)
+        
+        local function onTeamChange(player, newTeam)
+            if player == localPlayer then return end
+            
+            if localPlayer.Team == SeekerTeam and newTeam == HiderTeam then
+                if not espFolders[player] then
+                    createESP(player)
+                end
+            else
+                if espFolders[player] then
+                    espFolders[player]:Destroy()
+                    espFolders[player] = nil
+                end
+            end
+        end
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= localPlayer then
+                player:GetPropertyChangedSignal("Team"):Connect(function()
+                    onTeamChange(player, player.Team)
+                end)
+            end
+        end
+    end
+end
 
 local function createNotification(message, color)
     if currentNotification then
@@ -191,7 +297,6 @@ local function createPlatformSelection()
     PCButton.MouseButton1Click:Connect(function()
         SelectionGui:Destroy()
         AimlockSettings.PlatformSelected = true
-        getgenv().AimlockCreateCrosshair = createCrosshair
         getgenv().AimlockCreateNotification = createNotification
         getgenv().AimlockFindNearestPlayer = findNearestPlayerToCrosshair
         loadstring(game:HttpGet("https://raw.githubusercontent.com/VortexBypass/Aimlock/refs/heads/main/pc.lua"))()
@@ -200,7 +305,6 @@ local function createPlatformSelection()
     MobileButton.MouseButton1Click:Connect(function()
         SelectionGui:Destroy()
         AimlockSettings.PlatformSelected = true
-        getgenv().AimlockCreateCrosshair = createCrosshair
         getgenv().AimlockCreateNotification = createNotification
         getgenv().AimlockFindNearestPlayer = findNearestPlayerToCrosshair
         loadstring(game:HttpGet("https://raw.githubusercontent.com/VortexBypass/Aimlock/refs/heads/main/mobile.lua"))()
@@ -209,7 +313,6 @@ local function createPlatformSelection()
     ControllerButton.MouseButton1Click:Connect(function()
         SelectionGui:Destroy()
         AimlockSettings.PlatformSelected = true
-        getgenv().AimlockCreateCrosshair = createCrosshair
         getgenv().AimlockCreateNotification = createNotification
         getgenv().AimlockFindNearestPlayer = findNearestPlayerToCrosshair
         loadstring(game:HttpGet("https://raw.githubusercontent.com/VortexBypass/Aimlock/refs/heads/main/controller.lua"))()
@@ -220,16 +323,16 @@ end
 
 RunService.Heartbeat:Connect(function()
     if AimlockSettings.PlatformSelected and AimlockSettings.AimLockEnabled and not AimlockSettings.SafetyLockEnabled then
-        local nearestPlayer = findNearestPlayerToCrosshair()
-        if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character:FindFirstChild("Head") then
+        if AimlockSettings.CurrentTarget and AimlockSettings.CurrentTarget.Character and AimlockSettings.CurrentTarget.Character:FindFirstChild("Head") then
             local camera = Workspace.CurrentCamera
-            local targetHead = nearestPlayer.Character.Head
+            local targetHead = AimlockSettings.CurrentTarget.Character.Head
             local currentCFrame = camera.CFrame
             local targetCFrame = CFrame.new(currentCFrame.Position, targetHead.Position)
             camera.CFrame = currentCFrame:Lerp(targetCFrame, AIM_SMOOTHNESS)
         else
             if AimlockSettings.AimLockEnabled then
                 AimlockSettings.AimLockEnabled = false
+                AimlockSettings.CurrentTarget = nil
                 createNotification("🎯 TARGET LOST\nAimlock disabled", Color3.new(1, 0.5, 0))
             end
         end
@@ -239,11 +342,16 @@ end)
 spawn(function()
     wait(1)
     createPlatformSelection()
+    initializeESP()
     
     wait(6)
     local TargetTeam = game:GetService("Teams"):FindFirstChild(TargetTeamName)
+    local PlayerTeam = game:GetService("Teams"):FindFirstChild(PlayerTeamName)
     if not TargetTeam then
         createNotification("⚠️ HIDER Team not found\nScript may not work", Color3.new(1, 1, 0))
+    end
+    if not PlayerTeam then
+        createNotification("⚠️ SEEKER Team not found\nScript may not work", Color3.new(1, 1, 0))
     end
 end)
 
