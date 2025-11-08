@@ -5,10 +5,6 @@ local SAFETY_LOCK_KEY = Enum.KeyCode.ButtonX
 local lastSquareClick = 0
 local DOUBLE_CLICK_TIME = 0.5
 
-if AimlockCreateCrosshair then
-    AimlockCreateCrosshair()
-end
-
 if AimlockCreateNotification then
     AimlockCreateNotification("🎮 CONTROLLER CONTROLS LOADED\n• L2: Toggle Aimlock\n• Double Square: Safety Lock", Color3.new(0, 1, 1))
 end
@@ -25,6 +21,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
                 end
                 if AimlockSettings.AimLockEnabled then
                     AimlockSettings.AimLockEnabled = false
+                    AimlockSettings.CurrentTarget = nil
                 end
             else
                 if AimlockCreateNotification then
@@ -37,21 +34,22 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     
     if input.UserInputType == Enum.UserInputType.Gamepad1 and input.KeyCode == AIM_LOCK_TOGGLE_KEY then
         if not gameProcessed and not AimlockSettings.SafetyLockEnabled then
-            AimlockSettings.AimLockEnabled = not AimlockSettings.AimLockEnabled
-            
-            if AimlockSettings.AimLockEnabled then
+            if not AimlockSettings.AimLockEnabled then
                 local target = AimlockFindNearestPlayer and AimlockFindNearestPlayer()
                 if target then
+                    AimlockSettings.AimLockEnabled = true
+                    AimlockSettings.CurrentTarget = target
                     if AimlockCreateNotification then
-                        AimlockCreateNotification("🎯 AIMLOCK: ON\nTargeting Hider: " .. target.Name, Color3.new(0, 1, 0))
+                        AimlockCreateNotification("🎯 AIMLOCK: ON\nLocked on: " .. target.Name, Color3.new(0, 1, 0))
                     end
                 else
                     if AimlockCreateNotification then
                         AimlockCreateNotification("🎯 AIMLOCK ON\nNo Hiders found in range", Color3.new(1, 1, 0))
                     end
-                    AimlockSettings.AimLockEnabled = false
                 end
             else
+                AimlockSettings.AimLockEnabled = false
+                AimlockSettings.CurrentTarget = nil
                 if AimlockCreateNotification then
                     AimlockCreateNotification("🎯 AIMLOCK: OFF", Color3.new(1, 0, 0))
                 end
