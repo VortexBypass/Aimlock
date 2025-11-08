@@ -1,10 +1,6 @@
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 
-if AimlockCreateCrosshair then
-    AimlockCreateCrosshair()
-end
-
 if AimlockCreateNotification then
     AimlockCreateNotification("📱 MOBILE CONTROLS LOADED\nUse floating button for aimlock", Color3.new(0, 1, 1))
 end
@@ -71,12 +67,13 @@ local function createMobileGUI()
     
     FloatingButton.MouseButton1Click:Connect(function()
         if not AimlockSettings.SafetyLockEnabled then
-            AimlockSettings.AimLockEnabled = not AimlockSettings.AimLockEnabled
-            if AimlockSettings.AimLockEnabled then
+            if not AimlockSettings.AimLockEnabled then
                 local target = AimlockFindNearestPlayer and AimlockFindNearestPlayer()
                 if target then
+                    AimlockSettings.AimLockEnabled = true
+                    AimlockSettings.CurrentTarget = target
                     if AimlockCreateNotification then
-                        AimlockCreateNotification("🎯 AIMLOCK: ON\nTargeting Hider: " .. target.Name, Color3.new(0, 1, 0))
+                        AimlockCreateNotification("🎯 AIMLOCK: ON\nLocked on: " .. target.Name, Color3.new(0, 1, 0))
                     end
                     FloatingButton.Text = "AIM\nON"
                     FloatingButton.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
@@ -84,9 +81,10 @@ local function createMobileGUI()
                     if AimlockCreateNotification then
                         AimlockCreateNotification("🎯 AIMLOCK ON\nNo Hiders found in range", Color3.new(1, 1, 0))
                     end
-                    AimlockSettings.AimLockEnabled = false
                 end
             else
+                AimlockSettings.AimLockEnabled = false
+                AimlockSettings.CurrentTarget = nil
                 if AimlockCreateNotification then
                     AimlockCreateNotification("🎯 AIMLOCK: OFF", Color3.new(1, 0, 0))
                 end
