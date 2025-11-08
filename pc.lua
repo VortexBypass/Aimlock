@@ -5,8 +5,11 @@ local PC_SAFETY_LOCK_KEY = Enum.KeyCode.Q
 local lastQClick = 0
 local DOUBLE_CLICK_TIME = 0.5
 
-if AimlockSettings then
+if AimlockCreateCrosshair then
     AimlockCreateCrosshair()
+end
+
+if AimlockCreateNotification then
     AimlockCreateNotification("🖥️ PC CONTROLS LOADED\n• E: Toggle Aimlock\n• Double Q: Safety Lock", Color3.new(0, 1, 1))
 end
 
@@ -16,18 +19,26 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
             AimlockSettings.AimLockEnabled = not AimlockSettings.AimLockEnabled
             
             if AimlockSettings.AimLockEnabled then
-                local target = AimlockFindNearestPlayer()
+                local target = AimlockFindNearestPlayer and AimlockFindNearestPlayer()
                 if target then
-                    AimlockCreateNotification("🎯 AIMLOCK: ON\nTargeting Hider: " .. target.Name, Color3.new(0, 1, 0))
+                    if AimlockCreateNotification then
+                        AimlockCreateNotification("🎯 AIMLOCK: ON\nTargeting Hider: " .. target.Name, Color3.new(0, 1, 0))
+                    end
                 else
-                    AimlockCreateNotification("🎯 AIMLOCK ON\nNo Hiders found in range", Color3.new(1, 1, 0))
+                    if AimlockCreateNotification then
+                        AimlockCreateNotification("🎯 AIMLOCK ON\nNo Hiders found in range", Color3.new(1, 1, 0))
+                    end
                     AimlockSettings.AimLockEnabled = false
                 end
             else
-                AimlockCreateNotification("🎯 AIMLOCK: OFF", Color3.new(1, 0, 0))
+                if AimlockCreateNotification then
+                    AimlockCreateNotification("🎯 AIMLOCK: OFF", Color3.new(1, 0, 0))
+                end
             end
         elseif AimlockSettings.SafetyLockEnabled then
-            AimlockCreateNotification("❌ E KEY BLOCKED\nSafety Lock is active\nDouble-click Q to disable", Color3.new(1, 0.5, 0))
+            if AimlockCreateNotification then
+                AimlockCreateNotification("❌ E KEY BLOCKED\nSafety Lock is active\nDouble-click Q to disable", Color3.new(1, 0.5, 0))
+            end
         end
     end
     
@@ -37,12 +48,16 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
             AimlockSettings.SafetyLockEnabled = not AimlockSettings.SafetyLockEnabled
             
             if AimlockSettings.SafetyLockEnabled then
-                AimlockCreateNotification("🔒 SAFETY LOCK ENABLED\nE key is now disabled\nAimlock: FORCED OFF", Color3.new(1, 0.5, 0))
+                if AimlockCreateNotification then
+                    AimlockCreateNotification("🔒 SAFETY LOCK ENABLED\nE key is now disabled\nAimlock: FORCED OFF", Color3.new(1, 0.5, 0))
+                end
                 if AimlockSettings.AimLockEnabled then
                     AimlockSettings.AimLockEnabled = false
                 end
             else
-                AimlockCreateNotification("🔓 SAFETY LOCK DISABLED\nE key is now enabled", Color3.new(0, 1, 0))
+                if AimlockCreateNotification then
+                    AimlockCreateNotification("🔓 SAFETY LOCK DISABLED\nE key is now enabled", Color3.new(0, 1, 0))
+                end
             end
         end
         lastQClick = currentTime
